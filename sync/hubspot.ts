@@ -1,6 +1,6 @@
 import { Client } from "@hubspot/api-client";
 import { FilterOperatorEnum } from "@hubspot/api-client/lib/codegen/crm/companies/models/Filter.js";
-import type { CompanyRow, EngagementRow, DealRow, OwnerRow } from "./db.js";
+import type { CompanyRow, EngagementRow, DealRow, OwnerRow } from "./db";
 
 // ---------------------------------------------------------------------------
 // Types for raw HubSpot API responses (beyond what the SDK types cover)

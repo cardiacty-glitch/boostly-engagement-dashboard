@@ -10,7 +10,7 @@
  */
 
 import "dotenv/config";
-import { runSync } from "./runner.js";
+import { runSync } from "./runner";
 
 const full = process.argv.includes("--full");
 

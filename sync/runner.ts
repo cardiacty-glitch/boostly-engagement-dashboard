@@ -13,14 +13,14 @@ import {
   upsertCompany,
   upsertEngagement,
   upsertDeal,
-} from "./db.js";
+} from "./db";
 import {
   resolvePropertyKeys,
   fetchOwners,
   fetchAllCompanies,
   fetchAllEngagements,
   fetchAllClosedWonDeals,
-} from "./hubspot.js";
+} from "./hubspot";
 
 export interface SyncOptions {
   full?: boolean;
