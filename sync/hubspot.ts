@@ -41,6 +41,19 @@ interface AssociationBatchResult {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Parses a HubSpot date value that may be an ISO string or a ms timestamp string. */
+function parseHubSpotDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  // Try as a numeric millisecond timestamp first, then fall back to ISO string.
+  const asNum = Number(value);
+  const d = isFinite(asNum) && asNum > 0 ? new Date(asNum) : new Date(value);
+  return isFinite(d.getTime()) ? d : null;
+}
+
+// ---------------------------------------------------------------------------
 // Property key resolution
 // ---------------------------------------------------------------------------
 
@@ -211,6 +224,8 @@ export async function* fetchAllEngagements(
   let after: string | undefined;
 
   do {
+    // Filter by hs_timestamp (occurrence date) so we get engagements that
+    // actually happened in the window, not just ones that were recently modified.
     const rawSearchResponse = await hubspot.apiRequest({
       method: "POST",
       path: "/crm/v3/objects/engagements/search",
@@ -219,7 +234,7 @@ export async function* fetchAllEngagements(
           {
             filters: [
               {
-                propertyName: "hs_lastmodifieddate",
+                propertyName: "hs_timestamp",
                 operator: "GTE",
                 value: String(modifiedSince.getTime()),
               },
@@ -227,7 +242,7 @@ export async function* fetchAllEngagements(
           },
         ],
         properties: ["hs_engagement_type", "hs_timestamp", "hs_lastmodifieddate"],
-        sorts: ["hs_lastmodifieddate"],
+        sorts: ["hs_timestamp"],
         limit: 100,
         ...(after ? { after } : {}),
       },
@@ -249,10 +264,8 @@ export async function* fetchAllEngagements(
       if (!companyId) continue; // skip engagements with no company
 
       const p = eng.properties;
-      const occurredAtRaw = p.hs_timestamp ? new Date(Number(p.hs_timestamp)) : null;
-      const occurredAt = occurredAtRaw && isFinite(occurredAtRaw.getTime()) ? occurredAtRaw : null;
-      const updatedAtRaw = p.hs_lastmodifieddate ? new Date(p.hs_lastmodifieddate) : null;
-      const updatedAt = updatedAtRaw && isFinite(updatedAtRaw.getTime()) ? updatedAtRaw : null;
+      const occurredAt = parseHubSpotDate(p.hs_timestamp);
+      const updatedAt = parseHubSpotDate(p.hs_lastmodifieddate);
 
       yield {
         hubspot_engagement_id: eng.id,
