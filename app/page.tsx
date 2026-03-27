@@ -30,6 +30,22 @@ function formatSpend(avg: number | null): string {
 
 type SortKey = "ease_score_0_to_100" | "contact_frequency_90d" | "company_name" | "days_since_last_engagement";
 
+const ENGAGEMENT_LABELS: Record<string, string> = {
+  EMAIL: "Email",
+  CALL: "Call",
+  MEETING: "Meeting",
+  NOTE: "Note",
+  TASK: "Task",
+};
+
+const ENGAGEMENT_COLORS: Record<string, string> = {
+  EMAIL: "bg-blue-100 text-blue-700",
+  CALL: "bg-purple-100 text-purple-700",
+  MEETING: "bg-green-100 text-green-700",
+  NOTE: "bg-yellow-100 text-yellow-700",
+  TASK: "bg-gray-100 text-gray-700",
+};
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -166,6 +182,11 @@ function CompanyTable({
                 onClick={handleSort}
               />
             </th>
+            <th className="text-left px-4 py-3 hidden lg:table-cell">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Type
+              </span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
@@ -205,6 +226,19 @@ function CompanyTable({
                   c.days_since_last_engagement !== null
                     ? Number(c.days_since_last_engagement)
                     : null
+                )}
+              </td>
+              <td className="px-4 py-3 hidden lg:table-cell">
+                {c.last_engagement_type ? (
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      ENGAGEMENT_COLORS[c.last_engagement_type] ?? "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {ENGAGEMENT_LABELS[c.last_engagement_type] ?? c.last_engagement_type}
+                  </span>
+                ) : (
+                  <span className="text-gray-300">—</span>
                 )}
               </td>
             </tr>

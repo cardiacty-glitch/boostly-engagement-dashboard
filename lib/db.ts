@@ -50,6 +50,7 @@ export interface CompanyRow {
   last_engagement_at: string | null;
   days_since_last_engagement: number | null;
   ease_score_0_to_100: number;
+  last_engagement_type: string | null;  // EMAIL, CALL, MEETING, NOTE, TASK
 }
 
 export interface EngagementTypeRow {
@@ -102,7 +103,8 @@ export async function getCompanyMetrics(ownerName?: string): Promise<CompanyRow[
          hubspot_company_id, company_name, owner_id, owner_name,
          account_status, credits_package, contact_frequency_90d,
          avg_spend_3mo, deal_count_3mo,
-         last_engagement_at, days_since_last_engagement, ease_score_0_to_100
+         last_engagement_at, days_since_last_engagement, ease_score_0_to_100,
+         last_engagement_type
        FROM company_metrics
        WHERE owner_id IS NOT NULL
          AND (owner_name IS NULL OR owner_name NOT ILIKE '%(general)%')

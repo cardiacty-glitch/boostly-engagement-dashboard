@@ -54,6 +54,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(1),
     days_since_last_engagement: 1,
     ease_score_0_to_100: 94.2,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c2",
@@ -68,6 +69,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(4),
     days_since_last_engagement: 4,
     ease_score_0_to_100: 80.7,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c3",
@@ -82,6 +84,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(9),
     days_since_last_engagement: 9,
     ease_score_0_to_100: 66.3,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c4",
@@ -96,6 +99,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(22),
     days_since_last_engagement: 22,
     ease_score_0_to_100: 41.0,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c5",
@@ -110,6 +114,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(61),
     days_since_last_engagement: 61,
     ease_score_0_to_100: 10.7,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c6",
@@ -124,6 +129,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: null,
     days_since_last_engagement: null,
     ease_score_0_to_100: 0,
+    last_engagement_type: "EMAIL",
   },
   // Sarah Johnson
   {
@@ -139,6 +145,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(2),
     days_since_last_engagement: 2,
     ease_score_0_to_100: 88.0,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c8",
@@ -153,6 +160,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(14),
     days_since_last_engagement: 14,
     ease_score_0_to_100: 52.3,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c9",
@@ -167,6 +175,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(45),
     days_since_last_engagement: 45,
     ease_score_0_to_100: 23.9,
+    last_engagement_type: "EMAIL",
   },
   // Mike Chen
   {
@@ -182,6 +191,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(6),
     days_since_last_engagement: 6,
     ease_score_0_to_100: 73.3,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c11",
@@ -196,6 +206,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(31),
     days_since_last_engagement: 31,
     ease_score_0_to_100: 33.7,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c12",
@@ -210,6 +221,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(88),
     days_since_last_engagement: 88,
     ease_score_0_to_100: 2.2,
+    last_engagement_type: "EMAIL",
   },
   // Emma Davis
   {
@@ -225,6 +237,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(0),
     days_since_last_engagement: 0,
     ease_score_0_to_100: 100,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c14",
@@ -239,6 +252,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(3),
     days_since_last_engagement: 3,
     ease_score_0_to_100: 89.3,
+    last_engagement_type: "EMAIL",
   },
   {
     hubspot_company_id: "c15",
@@ -253,6 +267,7 @@ export const MOCK_COMPANIES: CompanyRow[] = [
     last_engagement_at: daysAgo(10),
     days_since_last_engagement: 10,
     ease_score_0_to_100: 62.7,
+    last_engagement_type: "EMAIL",
   },
 ];
 
