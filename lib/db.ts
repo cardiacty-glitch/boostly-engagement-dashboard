@@ -104,9 +104,9 @@ export async function getCompanyMetrics(ownerName?: string): Promise<CompanyRow[
          avg_spend_3mo, deal_count_3mo,
          last_engagement_at, days_since_last_engagement, ease_score_0_to_100
        FROM company_metrics
-       WHERE owner_name = $1
-       ORDER BY ease_score_0_to_100 DESC
-       LIMIT 500`,
+       WHERE account_status = 'Active'
+         AND owner_name = $1
+       ORDER BY ease_score_0_to_100 DESC`,
       [ownerName]
     );
     return rows;
@@ -119,8 +119,8 @@ export async function getCompanyMetrics(ownerName?: string): Promise<CompanyRow[
       avg_spend_3mo, deal_count_3mo,
       last_engagement_at, days_since_last_engagement, ease_score_0_to_100
     FROM company_metrics
+    WHERE account_status = 'Active'
     ORDER BY ease_score_0_to_100 DESC
-    LIMIT 500
   `);
   return rows;
 }
