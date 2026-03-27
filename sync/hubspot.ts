@@ -119,73 +119,89 @@ export async function* fetchAllCompanies(
   accountStatusKey: string,
   modifiedSince: Date
 ): AsyncGenerator<CompanyRow> {
-  // Build an owner ID → owner name lookup from the owners list so we can
-  // resolve names without extra API calls per company.
-  const ownerMap = new Map<string, string>();
-  for (const o of await fetchOwners(hubspot)) {
-    ownerMap.set(o.owner_id, o.owner_name);
-  }
+  // Owner name lookup skipped — crm.objects.owners.read scope not available.
+  // owner_name will be null; owner filtering won't work until scope is added.
 
-  let after: string | undefined;
+  const properties = [
+    "name",
+    "hubspot_owner_id",
+    creditsPackageKey,
+    accountStatusKey,
+    "hs_lastmodifieddate",
+  ];
 
-  do {
-    // Use the search API so we can filter by hs_lastmodifieddate for
-    // incremental syncs. Passing an empty filterGroups array returns all.
-    const response = await hubspot.crm.companies.searchApi.doSearch({
-      filterGroups:
-        modifiedSince.getTime() > 0
-          ? [
+  const isFullSync = modifiedSince.getTime() === 0;
+
+  if (isFullSync) {
+    // Full sync: use the basic list API — no 10,000-result cap.
+    let after: string | undefined;
+    do {
+      const response = await hubspot.crm.companies.basicApi.getPage(
+        100,
+        after,
+        properties
+      );
+      for (const company of response.results) {
+        yield mapCompany(company, creditsPackageKey, accountStatusKey);
+      }
+      after = response.paging?.next?.after;
+    } while (after);
+  } else {
+    // Incremental sync: use the search API to filter by modified date.
+    // The search API caps at 10,000 results, which is fine for incremental windows.
+    let after: string | undefined;
+    do {
+      const response = await hubspot.crm.companies.searchApi.doSearch({
+        filterGroups: [
+          {
+            filters: [
               {
-                filters: [
-                  {
-                    propertyName: "hs_lastmodifieddate",
-                    operator: FilterOperatorEnum.Gte,
-                    value: String(modifiedSince.getTime()),
-                  },
-                ],
+                propertyName: "hs_lastmodifieddate",
+                operator: FilterOperatorEnum.Gte,
+                value: String(modifiedSince.getTime()),
               },
-            ]
-          : [],
-      properties: [
-        "name",
-        "hubspot_owner_id",
-        creditsPackageKey,
-        accountStatusKey,
-        "hs_lastmodifieddate",
-      ],
-      sorts: ["hs_lastmodifieddate"],
-      limit: 100,
-      after: after ?? "0",
-    });
+            ],
+          },
+        ],
+        properties,
+        sorts: ["hs_lastmodifieddate"],
+        limit: 100,
+        after: after ?? "0",
+      });
+      for (const company of response.results) {
+        yield mapCompany(company, creditsPackageKey, accountStatusKey);
+      }
+      after = response.paging?.next?.after;
+    } while (after);
+  }
+}
 
-    for (const company of response.results) {
-      const p = company.properties;
-      const ownerId = p["hubspot_owner_id"] ?? null;
-
-      yield {
-        hubspot_company_id: company.id,
-        company_name: p["name"] ?? null,
-        owner_id: ownerId,
-        owner_name: ownerId ? (ownerMap.get(ownerId) ?? null) : null,
-        credits_package:
-          p[creditsPackageKey] && p[creditsPackageKey]!.trim() !== ""
-            ? p[creditsPackageKey]!
-            : null,
-        account_status: p[accountStatusKey] ?? null,
-        hs_updated_at: p["hs_lastmodifieddate"]
-          ? new Date(p["hs_lastmodifieddate"]!)
-          : null,
-      };
-    }
-
-    after = response.paging?.next?.after;
-  } while (after);
+function mapCompany(
+  company: { id: string; properties: Record<string, string | null | undefined> },
+  creditsPackageKey: string,
+  accountStatusKey: string
+): CompanyRow {
+  const p = company.properties;
+  return {
+    hubspot_company_id: company.id,
+    company_name: p["name"] ?? null,
+    owner_id: p["hubspot_owner_id"] ?? null,
+    owner_name: null,
+    credits_package:
+      p[creditsPackageKey] && p[creditsPackageKey]!.trim() !== ""
+        ? p[creditsPackageKey]!
+        : null,
+    account_status: p[accountStatusKey] ?? null,
+    hs_updated_at: p["hs_lastmodifieddate"]
+      ? new Date(p["hs_lastmodifieddate"]!)
+      : null,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Engagements
-// Fetches all engagements (with company associations) using the v3 list
-// endpoint, which is more efficient than per-company association lookups.
+// Uses the search API with a server-side date filter to avoid fetching all
+// records ever. Company associations are fetched in a separate batch call.
 // ---------------------------------------------------------------------------
 
 export async function* fetchAllEngagements(
@@ -195,68 +211,86 @@ export async function* fetchAllEngagements(
   let after: string | undefined;
 
   do {
-    // The typed SDK BasicApi does not expose the `associations` query param,
-    // so we use the generic apiRequest method for this call.
-    const rawEngResponse = await hubspot.apiRequest({
-      method: "GET",
-      path: "/crm/v3/objects/engagements",
-      qs: {
-        properties: [
-          "hs_engagement_type",
-          "hs_timestamp",
-          "hs_lastmodifieddate",
+    const rawSearchResponse = await hubspot.apiRequest({
+      method: "POST",
+      path: "/crm/v3/objects/engagements/search",
+      body: {
+        filterGroups: [
+          {
+            filters: [
+              {
+                propertyName: "hs_lastmodifieddate",
+                operator: "GTE",
+                value: String(modifiedSince.getTime()),
+              },
+            ],
+          },
         ],
-        associations: ["companies"],
+        properties: ["hs_engagement_type", "hs_timestamp", "hs_lastmodifieddate"],
+        sorts: ["hs_lastmodifieddate"],
         limit: 100,
         ...(after ? { after } : {}),
-        ...(modifiedSince.getTime() > 0
-          ? {
-              // Incremental: only engagements modified since last sync.
-              // This uses the filter param supported on the list endpoint.
-            }
-          : {}),
       },
     });
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const page = (await (rawEngResponse as any).json()) as HubSpotPage<HubSpotEngagement>;
+    const response = (await (rawSearchResponse as any).json()) as HubSpotPage<HubSpotEngagement>;
 
-    for (const eng of page.results) {
-      const companies = eng.associations?.companies?.results ?? [];
-      if (companies.length === 0) {
-        // Skip engagements not associated with any company.
-        continue;
-      }
+    const engagements: HubSpotEngagement[] = response.results ?? [];
+    if (engagements.length === 0) break;
+
+    // Batch-fetch company associations for this page.
+    const assocMap = await batchFetchEngagementCompanyAssociations(
+      hubspot,
+      engagements.map((e: HubSpotEngagement) => e.id)
+    );
+
+    for (const eng of engagements) {
+      const companyId = assocMap.get(eng.id);
+      if (!companyId) continue; // skip engagements with no company
 
       const p = eng.properties;
-      const occurredAt = p.hs_timestamp ? new Date(Number(p.hs_timestamp)) : null;
-      const updatedAt = p.hs_lastmodifieddate
-        ? new Date(p.hs_lastmodifieddate)
-        : null;
+      const occurredAtRaw = p.hs_timestamp ? new Date(Number(p.hs_timestamp)) : null;
+      const occurredAt = occurredAtRaw && isFinite(occurredAtRaw.getTime()) ? occurredAtRaw : null;
+      const updatedAtRaw = p.hs_lastmodifieddate ? new Date(p.hs_lastmodifieddate) : null;
+      const updatedAt = updatedAtRaw && isFinite(updatedAtRaw.getTime()) ? updatedAtRaw : null;
 
-      // An engagement may be linked to multiple companies; emit one row per association.
-      for (const assoc of companies) {
-        // Skip if the engagement was not modified since last sync (incremental).
-        if (
-          modifiedSince.getTime() > 0 &&
-          updatedAt &&
-          updatedAt <= modifiedSince
-        ) {
-          continue;
-        }
-
-        yield {
-          hubspot_engagement_id: eng.id,
-          hubspot_company_id: assoc.id,
-          engagement_type: p.hs_engagement_type ?? null,
-          occurred_at: occurredAt,
-          hs_updated_at: updatedAt,
-        };
-      }
+      yield {
+        hubspot_engagement_id: eng.id,
+        hubspot_company_id: companyId,
+        engagement_type: p.hs_engagement_type ?? null,
+        occurred_at: occurredAt,
+        hs_updated_at: updatedAt,
+      };
     }
 
-    after = page.paging?.next?.after;
+    after = (response as HubSpotPage<HubSpotEngagement>).paging?.next?.after;
   } while (after);
+}
+
+async function batchFetchEngagementCompanyAssociations(
+  hubspot: Client,
+  engagementIds: string[]
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (engagementIds.length === 0) return map;
+
+  const rawResponse = await hubspot.apiRequest({
+    method: "POST",
+    path: "/crm/v3/associations/engagements/companies/batch/read",
+    body: { inputs: engagementIds.map((id) => ({ id })) },
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = (await (rawResponse as any).json()) as AssociationBatchResult;
+
+  for (const entry of result.results ?? []) {
+    const firstCompany = entry.to?.[0];
+    if (firstCompany) {
+      map.set(entry.from.id, firstCompany.id);
+    }
+  }
+
+  return map;
 }
 
 // ---------------------------------------------------------------------------

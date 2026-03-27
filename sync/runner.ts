@@ -10,9 +10,9 @@ import {
   getSyncState,
   setSyncState,
   upsertOwner,
-  upsertCompany,
-  upsertEngagement,
-  upsertDeal,
+  upsertCompanies,
+  upsertEngagements,
+  upsertDeals,
 } from "./db";
 import {
   resolvePropertyKeys,
@@ -46,40 +46,65 @@ export async function runSync(options: SyncOptions = {}): Promise<void> {
     console.log("[sync] Step 1: Resolving property keys...");
     const { creditsPackageKey, accountStatusKey } = await resolvePropertyKeys(hubspot);
 
-    // Step 2: Owners
-    console.log("[sync] Step 2: Syncing owners...");
-    const owners = await fetchOwners(hubspot);
-    for (const owner of owners) {
-      await upsertOwner(pool, owner);
-    }
-    console.log(`[sync] Owners: ${owners.length}`);
+    // Step 2: Owners — skipped (crm.objects.owners.read scope not granted).
+    // owner_name is stored directly on companies so filtering still works.
+    console.log("[sync] Step 2: Skipping owners (scope not available).");
 
     // Step 3: Companies
     console.log("[sync] Step 3: Syncing companies...");
     const companiesLastSynced = full ? new Date(0) : await getSyncState(pool, "companies");
     let companyCount = 0;
     const companiesBatchStart = new Date();
+    const COMPANY_BATCH = 500;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const companyBuf: any[] = [];
     for await (const company of fetchAllCompanies(
       hubspot, creditsPackageKey, accountStatusKey, companiesLastSynced
     )) {
-      await upsertCompany(pool, company);
-      companyCount++;
+      companyBuf.push(company);
+      if (companyBuf.length >= COMPANY_BATCH) {
+        await upsertCompanies(pool, companyBuf);
+        companyCount += companyBuf.length;
+        console.log(`[sync] Companies progress: ${companyCount}`);
+        companyBuf.length = 0;
+      }
+    }
+    if (companyBuf.length > 0) {
+      await upsertCompanies(pool, companyBuf);
+      companyCount += companyBuf.length;
     }
     console.log(`[sync] Companies: ${companyCount}`);
     await setSyncState(pool, "companies", companiesBatchStart);
 
     // Step 4: Engagements
     console.log("[sync] Step 4: Syncing engagements...");
-    const engagementsLastSynced = full ? new Date(0) : await getSyncState(pool, "engagements");
+    // For a full sync we only need 90 days — that is all the dashboard uses.
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const engagementsLastSynced = full ? ninetyDaysAgo : await getSyncState(pool, "engagements");
     let engagementCount = 0;
     let engSkipped = 0;
     const engBatchStart = new Date();
+    const ENGAGEMENT_BATCH = 500;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const engBuf: any[] = [];
     for await (const engagement of fetchAllEngagements(hubspot, engagementsLastSynced)) {
+      engBuf.push(engagement);
+      if (engBuf.length >= ENGAGEMENT_BATCH) {
+        try {
+          await upsertEngagements(pool, engBuf);
+          engagementCount += engBuf.length;
+        } catch (err: unknown) {
+          if (isFKViolation(err)) { engSkipped += engBuf.length; } else { throw err; }
+        }
+        engBuf.length = 0;
+      }
+    }
+    if (engBuf.length > 0) {
       try {
-        await upsertEngagement(pool, engagement);
-        engagementCount++;
+        await upsertEngagements(pool, engBuf);
+        engagementCount += engBuf.length;
       } catch (err: unknown) {
-        if (isFKViolation(err)) { engSkipped++; } else { throw err; }
+        if (isFKViolation(err)) { engSkipped += engBuf.length; } else { throw err; }
       }
     }
     console.log(`[sync] Engagements: ${engagementCount} (skipped ${engSkipped})`);
@@ -91,12 +116,27 @@ export async function runSync(options: SyncOptions = {}): Promise<void> {
     let dealCount = 0;
     let dealSkipped = 0;
     const dealsBatchStart = new Date();
+    const DEAL_BATCH = 500;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dealBuf: any[] = [];
     for await (const deal of fetchAllClosedWonDeals(hubspot, dealsLastSynced)) {
+      dealBuf.push(deal);
+      if (dealBuf.length >= DEAL_BATCH) {
+        try {
+          await upsertDeals(pool, dealBuf);
+          dealCount += dealBuf.length;
+        } catch (err: unknown) {
+          if (isFKViolation(err)) { dealSkipped += dealBuf.length; } else { throw err; }
+        }
+        dealBuf.length = 0;
+      }
+    }
+    if (dealBuf.length > 0) {
       try {
-        await upsertDeal(pool, deal);
-        dealCount++;
+        await upsertDeals(pool, dealBuf);
+        dealCount += dealBuf.length;
       } catch (err: unknown) {
-        if (isFKViolation(err)) { dealSkipped++; } else { throw err; }
+        if (isFKViolation(err)) { dealSkipped += dealBuf.length; } else { throw err; }
       }
     }
     console.log(`[sync] Deals: ${dealCount} (skipped ${dealSkipped})`);
