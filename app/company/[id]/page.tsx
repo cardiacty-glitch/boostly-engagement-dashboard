@@ -23,13 +23,9 @@ function formatDaysAgo(days: number | null): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-function formatSpend(spend: string | null, source: string | null): string {
-  if (!spend) return "—";
-  const num = parseFloat(spend);
-  if (isNaN(num)) return spend;
-  return source === "credits_package"
-    ? `${num.toLocaleString()} credits`
-    : `$${num.toLocaleString("en-US", { minimumFractionDigits: 0 })}`;
+function formatSpend(avg: number | null): string {
+  if (avg === null) return "—";
+  return `$${Math.round(avg).toLocaleString("en-US")}/mo`;
 }
 
 function formatDate(iso: string | null): string {
@@ -104,6 +100,7 @@ export default function CompanyDetailPage({
   const [data, setData] = useState<CompanyDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMock, setIsMock] = useState(false);
 
   useEffect(() => {
     fetch(`/api/company/${id}`)
@@ -113,6 +110,7 @@ export default function CompanyDetailPage({
       })
       .then((d) => {
         setData(d);
+        if (d.mock) setIsMock(true);
         setLoading(false);
       })
       .catch(() => {
@@ -158,6 +156,13 @@ export default function CompanyDetailPage({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* Mock banner */}
+        {isMock && (
+          <div className="mb-6 flex items-center gap-2 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-xl px-4 py-3 text-sm">
+            <span className="font-semibold">Sample data</span> — no database connected. Add DATABASE_URL to see real HubSpot data.
+          </div>
+        )}
 
         {/* Back + header */}
         <div className="mb-8">
@@ -210,14 +215,12 @@ export default function CompanyDetailPage({
             sub="engagements in 90 days"
           />
           <StatCard
-            label="Spend"
-            value={formatSpend(metrics.spend, metrics.spend_source)}
+            label="Avg Spend"
+            value={formatSpend(metrics.avg_spend_3mo)}
             sub={
-              metrics.spend_source === "credits_package"
-                ? "credits package"
-                : metrics.spend_source === "latest_closed_won_deal"
-                ? "last closed won deal"
-                : "no data"
+              metrics.avg_spend_3mo !== null
+                ? `avg of ${metrics.deal_count_3mo} deal${metrics.deal_count_3mo !== 1 ? "s" : ""}, last 3 mo`
+                : "no deals in last 3 months"
             }
           />
           <StatCard

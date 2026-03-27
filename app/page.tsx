@@ -23,13 +23,9 @@ function formatDaysAgo(days: number | null): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-function formatSpend(spend: string | null, source: string | null): string {
-  if (!spend) return "—";
-  const num = parseFloat(spend);
-  if (isNaN(num)) return spend;
-  return source === "credits_package"
-    ? `${num.toLocaleString()} credits`
-    : `$${num.toLocaleString("en-US", { minimumFractionDigits: 0 })}`;
+function formatSpend(avg: number | null): string {
+  if (avg === null) return "—";
+  return `$${Math.round(avg).toLocaleString("en-US")}/mo`;
 }
 
 type SortKey = "ease_score_0_to_100" | "contact_frequency_90d" | "company_name" | "days_since_last_engagement";
@@ -193,7 +189,7 @@ function CompanyTable({
                 {c.contact_frequency_90d}
               </td>
               <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
-                {formatSpend(c.spend, c.spend_source)}
+                {formatSpend(c.avg_spend_3mo)}
               </td>
               <td className="px-4 py-3">
                 <span
@@ -269,11 +265,15 @@ export default function HomePage() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMock, setIsMock] = useState(false);
 
   useEffect(() => {
     fetch("/api/owners")
       .then((r) => r.json())
-      .then((d) => setOwners(d.owners ?? []))
+      .then((d) => {
+        setOwners(d.owners ?? []);
+        if (d.mock) setIsMock(true);
+      })
       .catch(() => setError("Could not load owners. Check DATABASE_URL."));
   }, []);
 
@@ -337,6 +337,11 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {isMock && (
+          <div className="mb-5 flex items-center gap-2 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-xl px-4 py-3 text-sm">
+            <span className="font-semibold">Sample data</span> — no database connected. Add DATABASE_URL to see real HubSpot data.
+          </div>
+        )}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
             {error}

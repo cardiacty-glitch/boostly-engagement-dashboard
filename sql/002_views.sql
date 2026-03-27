@@ -36,35 +36,21 @@ ORDER BY hubspot_company_id, closedate DESC NULLS LAST;
 
 -- ---------------------------------------------------------------------------
 -- 3. company_spend
---    Spend for each company: credits_package (if set) otherwise latest deal amount.
+--    Average dollar amount of Closed Won deals closed in the last 3 months,
+--    per company. NULL when no qualifying deals exist in that window.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW company_spend AS
 SELECT
   c.hubspot_company_id,
-  CASE
-    WHEN c.credits_package IS NOT NULL AND trim(c.credits_package) <> ''
-      THEN c.credits_package
-    WHEN d.amount IS NOT NULL
-      THEN d.amount::TEXT
-    ELSE NULL
-  END AS spend_raw,
-  CASE
-    WHEN c.credits_package IS NOT NULL AND trim(c.credits_package) <> ''
-      THEN 'credits_package'
-    WHEN d.amount IS NOT NULL
-      THEN 'latest_closed_won_deal'
-    ELSE NULL
-  END AS spend_source,
-  -- Numeric spend for sorting/aggregation (credits_package cast to numeric if possible)
-  CASE
-    WHEN c.credits_package IS NOT NULL AND trim(c.credits_package) <> ''
-      THEN c.credits_package::NUMERIC
-    ELSE d.amount
-  END AS spend_numeric,
-  d.amount       AS latest_deal_amount,
-  d.closedate    AS latest_deal_closedate
+  AVG(d.amount)              AS avg_spend_3mo,
+  COUNT(d.hubspot_deal_id)   AS deal_count_3mo
 FROM companies c
-LEFT JOIN latest_closed_won_deal d ON d.hubspot_company_id = c.hubspot_company_id;
+LEFT JOIN deals d
+  ON  d.hubspot_company_id = c.hubspot_company_id
+  AND d.deal_stage          = 'closedwon'
+  AND d.closedate          >= now() - interval '3 months'
+  AND d.amount             IS NOT NULL
+GROUP BY c.hubspot_company_id;
 
 -- ---------------------------------------------------------------------------
 -- 4. ease_score
@@ -127,10 +113,8 @@ SELECT
   c.account_status,
   c.credits_package,
   COALESCE(freq.engagement_count, 0)        AS contact_frequency_90d,
-  sp.spend_raw                              AS spend,
-  sp.spend_source,
-  sp.spend_numeric,
-  sp.latest_deal_amount,
+  sp.avg_spend_3mo,
+  sp.deal_count_3mo,
   es.last_engagement_at,
   es.days_since_last_engagement,
   es.engagement_count_90d,
@@ -155,7 +139,7 @@ SELECT
   ROUND(AVG(ease_score_0_to_100), 1)         AS avg_ease_score,
   ROUND(AVG(contact_frequency_90d), 1)       AS avg_contact_frequency_90d,
   SUM(contact_frequency_90d)                 AS total_contact_frequency_90d,
-  SUM(CASE WHEN spend_numeric IS NOT NULL THEN 1 ELSE 0 END)
+  SUM(CASE WHEN avg_spend_3mo IS NOT NULL THEN 1 ELSE 0 END)
                                              AS companies_with_spend_data
 FROM company_metrics
 GROUP BY owner_id, owner_name
