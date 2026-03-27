@@ -45,9 +45,8 @@ export interface CompanyRow {
   account_status: string | null;
   credits_package: string | null;
   contact_frequency_90d: number;
-  spend: string | null;
-  spend_source: string | null;
-  spend_numeric: number | null;
+  avg_spend_3mo: number | null;   // avg Closed Won deal amount, last 3 months
+  deal_count_3mo: number;
   last_engagement_at: string | null;
   days_since_last_engagement: number | null;
   ease_score_0_to_100: number;
@@ -102,11 +101,12 @@ export async function getCompanyMetrics(ownerName?: string): Promise<CompanyRow[
       `SELECT
          hubspot_company_id, company_name, owner_id, owner_name,
          account_status, credits_package, contact_frequency_90d,
-         spend, spend_source, spend_numeric,
+         avg_spend_3mo, deal_count_3mo,
          last_engagement_at, days_since_last_engagement, ease_score_0_to_100
        FROM company_metrics
        WHERE owner_name = $1
-       ORDER BY ease_score_0_to_100 DESC`,
+       ORDER BY ease_score_0_to_100 DESC
+       LIMIT 500`,
       [ownerName]
     );
     return rows;
@@ -116,10 +116,11 @@ export async function getCompanyMetrics(ownerName?: string): Promise<CompanyRow[
     SELECT
       hubspot_company_id, company_name, owner_id, owner_name,
       account_status, credits_package, contact_frequency_90d,
-      spend, spend_source, spend_numeric,
+      avg_spend_3mo, deal_count_3mo,
       last_engagement_at, days_since_last_engagement, ease_score_0_to_100
     FROM company_metrics
     ORDER BY ease_score_0_to_100 DESC
+    LIMIT 500
   `);
   return rows;
 }
@@ -132,7 +133,7 @@ export async function getCompanyDetail(companyId: string): Promise<CompanyDetail
       `SELECT
          hubspot_company_id, company_name, owner_id, owner_name,
          account_status, credits_package, contact_frequency_90d,
-         spend, spend_source, spend_numeric,
+         avg_spend_3mo, deal_count_3mo,
          last_engagement_at, days_since_last_engagement,
          recency_score, frequency_score, ease_score_0_to_100
        FROM company_metrics
