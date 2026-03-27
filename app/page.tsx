@@ -2,16 +2,18 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import type { OwnerRow, CompanyRow } from "@/lib/db";
+import type { CompanyRecord, OwnerSummary } from "@/lib/static-data";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function easeColor(score: number): string {
-  if (score >= 67) return "bg-green-100 text-green-800";
-  if (score >= 34) return "bg-yellow-100 text-yellow-800";
-  return "bg-red-100 text-red-800";
+function statusColor(status: string | null): string {
+  if (!status) return "bg-gray-100 text-gray-500";
+  if (status === "Active") return "bg-green-100 text-green-800";
+  if (status === "Paused") return "bg-yellow-100 text-yellow-800";
+  if (status === "Pending Cancellation") return "bg-orange-100 text-orange-800";
+  return "bg-gray-100 text-gray-500"; // Inactive, etc.
 }
 
 function formatDaysAgo(days: number | null): string {
@@ -23,28 +25,11 @@ function formatDaysAgo(days: number | null): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-function formatSpend(avg: number | null): string {
-  if (avg === null) return "—";
-  return `$${Math.round(avg).toLocaleString("en-US")}/mo`;
-}
-
-type SortKey = "ease_score_0_to_100" | "contact_frequency_90d" | "company_name" | "days_since_last_engagement";
-
-const ENGAGEMENT_LABELS: Record<string, string> = {
-  EMAIL: "Email",
-  CALL: "Call",
-  MEETING: "Meeting",
-  NOTE: "Note",
-  TASK: "Task",
-};
-
-const ENGAGEMENT_COLORS: Record<string, string> = {
-  EMAIL: "bg-blue-100 text-blue-700",
-  CALL: "bg-purple-100 text-purple-700",
-  MEETING: "bg-green-100 text-green-700",
-  NOTE: "bg-yellow-100 text-yellow-700",
-  TASK: "bg-gray-100 text-gray-700",
-};
+type SortKey =
+  | "company_name"
+  | "days_since_last_contacted"
+  | "child_locations"
+  | "account_status";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -83,33 +68,33 @@ function CompanyTable({
   companies,
   loading,
 }: {
-  companies: CompanyRow[];
+  companies: CompanyRecord[];
   loading: boolean;
 }) {
-  const [sortKey, setSortKey] = useState<SortKey>("ease_score_0_to_100");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [sortKey, setSortKey] = useState<SortKey>("company_name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   function handleSort(field: SortKey) {
     if (field === sortKey) {
       setSortDir((d) => (d === "desc" ? "asc" : "desc"));
     } else {
       setSortKey(field);
-      setSortDir("desc");
+      setSortDir(field === "company_name" ? "asc" : "desc");
     }
   }
 
   const sorted = [...companies].sort((a, b) => {
     let diff = 0;
-    if (sortKey === "ease_score_0_to_100")
-      diff = a.ease_score_0_to_100 - b.ease_score_0_to_100;
-    else if (sortKey === "contact_frequency_90d")
-      diff = a.contact_frequency_90d - b.contact_frequency_90d;
-    else if (sortKey === "company_name")
+    if (sortKey === "company_name")
       diff = (a.company_name ?? "").localeCompare(b.company_name ?? "");
-    else if (sortKey === "days_since_last_engagement")
+    else if (sortKey === "days_since_last_contacted")
       diff =
-        (a.days_since_last_engagement ?? 999) -
-        (b.days_since_last_engagement ?? 999);
+        (a.days_since_last_contacted ?? 9999) -
+        (b.days_since_last_contacted ?? 9999);
+    else if (sortKey === "child_locations")
+      diff = a.child_locations - b.child_locations;
+    else if (sortKey === "account_status")
+      diff = (a.account_status ?? "").localeCompare(b.account_status ?? "");
     return sortDir === "desc" ? -diff : diff;
   });
 
@@ -126,7 +111,7 @@ function CompanyTable({
   if (sorted.length === 0) {
     return (
       <p className="text-center text-gray-400 text-sm py-12">
-        No active companies found.
+        No companies found.
       </p>
     );
   }
@@ -152,8 +137,8 @@ function CompanyTable({
             </th>
             <th className="text-left px-4 py-3">
               <SortButton
-                label="Contacts (90d)"
-                field="contact_frequency_90d"
+                label="Status"
+                field="account_status"
                 current={sortKey}
                 dir={sortDir}
                 onClick={handleSort}
@@ -161,85 +146,76 @@ function CompanyTable({
             </th>
             <th className="text-left px-4 py-3 hidden sm:table-cell">
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Spend
+                Package
+              </span>
+            </th>
+            <th className="text-left px-4 py-3 hidden lg:table-cell">
+              <SortButton
+                label="Locations"
+                field="child_locations"
+                current={sortKey}
+                dir={sortDir}
+                onClick={handleSort}
+              />
+            </th>
+            <th className="text-left px-4 py-3 hidden md:table-cell">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Industry
               </span>
             </th>
             <th className="text-left px-4 py-3">
               <SortButton
-                label="Ease Score"
-                field="ease_score_0_to_100"
+                label="Last Contacted"
+                field="days_since_last_contacted"
                 current={sortKey}
                 dir={sortDir}
                 onClick={handleSort}
               />
-            </th>
-            <th className="text-left px-4 py-3 hidden lg:table-cell">
-              <SortButton
-                label="Last Contact"
-                field="days_since_last_engagement"
-                current={sortKey}
-                dir={sortDir}
-                onClick={handleSort}
-              />
-            </th>
-            <th className="text-left px-4 py-3 hidden lg:table-cell">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Type
-              </span>
             </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
           {sorted.map((c) => (
             <tr
-              key={c.hubspot_company_id}
+              key={c.id}
               className="hover:bg-gray-50 transition-colors"
             >
               <td className="px-4 py-3">
                 <Link
-                  href={`/company/${c.hubspot_company_id}`}
+                  href={`/company/${c.id}`}
                   className="font-medium text-gray-800 hover:text-blue-600 transition-colors"
                 >
-                  {c.company_name ?? "—"}
+                  {c.company_name}
                 </Link>
+                {c.city && c.state && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {c.city}, {c.state}
+                  </p>
+                )}
               </td>
               <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
                 {c.owner_name ?? "—"}
               </td>
-              <td className="px-4 py-3 text-gray-700 font-medium">
-                {c.contact_frequency_90d}
-              </td>
-              <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
-                {formatSpend(c.avg_spend_3mo)}
-              </td>
               <td className="px-4 py-3">
                 <span
-                  className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${easeColor(
-                    c.ease_score_0_to_100
+                  className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor(
+                    c.account_status
                   )}`}
                 >
-                  {Number(c.ease_score_0_to_100).toFixed(0)}
+                  {c.account_status ?? "—"}
                 </span>
               </td>
-              <td className="px-4 py-3 text-gray-500 hidden lg:table-cell">
-                {formatDaysAgo(
-                  c.days_since_last_engagement !== null
-                    ? Number(c.days_since_last_engagement)
-                    : null
-                )}
+              <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
+                {c.credits_package ?? "—"}
               </td>
-              <td className="px-4 py-3 hidden lg:table-cell">
-                {c.last_engagement_type ? (
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      ENGAGEMENT_COLORS[c.last_engagement_type] ?? "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {ENGAGEMENT_LABELS[c.last_engagement_type] ?? c.last_engagement_type}
-                  </span>
-                ) : (
-                  <span className="text-gray-300">—</span>
-                )}
+              <td className="px-4 py-3 text-gray-700 font-medium hidden lg:table-cell">
+                {c.child_locations > 0 ? c.child_locations : "—"}
+              </td>
+              <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
+                {c.industry ?? "—"}
+              </td>
+              <td className="px-4 py-3 text-gray-500">
+                {formatDaysAgo(c.days_since_last_contacted)}
               </td>
             </tr>
           ))}
@@ -249,36 +225,32 @@ function CompanyTable({
   );
 }
 
-function Leaderboard({ owners }: { owners: OwnerRow[] }) {
+function Leaderboard({ owners }: { owners: OwnerSummary[] }) {
   if (owners.length === 0) {
     return (
       <p className="text-center text-gray-400 text-sm py-12">
-        No owner data yet. Run the sync first.
+        No owner data.
       </p>
     );
   }
   return (
     <div className="divide-y divide-gray-100">
       {owners.map((o, i) => (
-        <div key={o.owner_id} className="flex items-center gap-4 px-6 py-4">
+        <div key={o.owner_name} className="flex items-center gap-4 px-6 py-4">
           <span className="text-2xl font-bold text-gray-200 w-8 text-right shrink-0">
             {i + 1}
           </span>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-gray-800 truncate">{o.owner_name}</p>
             <p className="text-xs text-gray-400">
-              {o.company_count} companies · {Number(o.avg_contact_frequency_90d).toFixed(1)} avg contacts/90d
+              {o.company_count} companies
             </p>
           </div>
           <div className="text-right shrink-0">
-            <p
-              className={`text-sm font-bold px-3 py-1 rounded-full ${easeColor(
-                Number(o.avg_ease_score)
-              )}`}
-            >
-              {Number(o.avg_ease_score).toFixed(1)}
+            <p className="text-sm font-bold text-green-700 px-3 py-1 rounded-full bg-green-100">
+              {o.active_count}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">avg ease</p>
+            <p className="text-xs text-gray-400 mt-0.5">active</p>
           </div>
         </div>
       ))}
@@ -291,24 +263,20 @@ function Leaderboard({ owners }: { owners: OwnerRow[] }) {
 // ---------------------------------------------------------------------------
 
 export default function HomePage() {
-  const [owners, setOwners] = useState<OwnerRow[]>([]);
-  const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const [owners, setOwners] = useState<OwnerSummary[]>([]);
+  const [companies, setCompanies] = useState<CompanyRecord[]>([]);
   const [selectedOwner, setSelectedOwner] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<"companies" | "leaderboard">(
     "companies"
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isMock, setIsMock] = useState(false);
 
   useEffect(() => {
     fetch("/api/owners")
       .then((r) => r.json())
-      .then((d) => {
-        setOwners(d.owners ?? []);
-        if (d.mock) setIsMock(true);
-      })
-      .catch(() => setError("Could not load owners. Check DATABASE_URL."));
+      .then((d) => setOwners(d.owners ?? []))
+      .catch(() => setError("Could not load owners."));
   }, []);
 
   const loadCompanies = useCallback((owner: string | null) => {
@@ -342,7 +310,7 @@ export default function HomePage() {
               Engagement Dashboard
             </h1>
             <p className="text-sm text-gray-500">
-              Contact frequency, spend, and ease-to-reach · last 90 days
+              527 parent companies · Tyler Price, Chris Hubbard, Kassidy Farrer
             </p>
           </div>
           <div className="flex gap-2">
@@ -371,11 +339,6 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        {isMock && (
-          <div className="mb-5 flex items-center gap-2 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-xl px-4 py-3 text-sm">
-            <span className="font-semibold">Sample data</span> — no database connected. Add DATABASE_URL to see real HubSpot data.
-          </div>
-        )}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
             {error}
@@ -398,7 +361,7 @@ export default function HomePage() {
               </button>
               {owners.map((o) => (
                 <button
-                  key={o.owner_id}
+                  key={o.owner_name}
                   onClick={() => setSelectedOwner(o.owner_name)}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                     selectedOwner === o.owner_name
@@ -414,7 +377,7 @@ export default function HomePage() {
             {/* Summary bar */}
             {!loading && (
               <p className="text-xs text-gray-400 mb-3">
-                {companies.length} active{" "}
+                {companies.length}{" "}
                 {companies.length === 1 ? "company" : "companies"}
                 {selectedOwner ? ` for ${selectedOwner}` : ""}
               </p>
@@ -431,7 +394,7 @@ export default function HomePage() {
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h2 className="font-semibold text-gray-900">Owner Leaderboard</h2>
-              <p className="text-xs text-gray-400">Ranked by average ease score</p>
+              <p className="text-xs text-gray-400">Ranked by active company count</p>
             </div>
             <Leaderboard owners={owners} />
           </div>

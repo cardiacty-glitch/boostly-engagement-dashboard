@@ -1,31 +1,15 @@
-import { getCompanyDetail } from "@/lib/db";
-import { getMockDetail } from "@/lib/mock-data";
+import { COMPANIES } from "@/lib/static-data";
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const company = COMPANIES.find((c) => c.id === id);
 
-  if (!process.env.DATABASE_URL) {
-    const detail = getMockDetail(id);
-    if (!detail.metrics) {
-      return Response.json({ error: "Company not found" }, { status: 404 });
-    }
-    return Response.json({ ...detail, mock: true });
+  if (!company) {
+    return Response.json({ error: "Company not found" }, { status: 404 });
   }
 
-  try {
-    const detail = await getCompanyDetail(id);
-    if (!detail.metrics) {
-      return Response.json({ error: "Company not found" }, { status: 404 });
-    }
-    return Response.json(detail);
-  } catch (err) {
-    console.error("[api/company/[id]]", err);
-    return Response.json(
-      { error: "Failed to load company detail." },
-      { status: 500 }
-    );
-  }
+  return Response.json({ company });
 }
