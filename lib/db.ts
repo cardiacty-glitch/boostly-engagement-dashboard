@@ -104,7 +104,8 @@ export async function getCompanyMetrics(ownerName?: string): Promise<CompanyRow[
          avg_spend_3mo, deal_count_3mo,
          last_engagement_at, days_since_last_engagement, ease_score_0_to_100
        FROM company_metrics
-       WHERE account_status = 'Active'
+       WHERE owner_id IS NOT NULL
+         AND (owner_name IS NULL OR owner_name NOT ILIKE '%(general)%')
          AND owner_name = $1
        ORDER BY ease_score_0_to_100 DESC`,
       [ownerName]
@@ -119,7 +120,8 @@ export async function getCompanyMetrics(ownerName?: string): Promise<CompanyRow[
       avg_spend_3mo, deal_count_3mo,
       last_engagement_at, days_since_last_engagement, ease_score_0_to_100
     FROM company_metrics
-    WHERE account_status = 'Active'
+    WHERE owner_id IS NOT NULL
+      AND (owner_name IS NULL OR owner_name NOT ILIKE '%(general)%')
     ORDER BY ease_score_0_to_100 DESC
   `);
   return rows;
