@@ -11,8 +11,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const password = process.env.DASHBOARD_PASSWORD;
   const auth = request.cookies.get(COOKIE)?.value;
-  if (auth === process.env.DASHBOARD_PASSWORD) {
+
+  if (password && auth === password) {
     return NextResponse.next();
   }
 
