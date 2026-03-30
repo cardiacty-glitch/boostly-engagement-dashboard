@@ -323,7 +323,7 @@ export default function HomePage() {
               Engagement Dashboard
             </h1>
             <p className="text-sm text-gray-500">
-              527 parent companies · Tyler Price, Chris Hubbard, Kassidy Farrer
+              858 parent companies · Dallas Williams, Chris Hubbard, Kassidy Farrer, Tyler Price
             </p>
           </div>
           <div className="flex gap-2">
