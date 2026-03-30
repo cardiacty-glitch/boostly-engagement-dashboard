@@ -262,10 +262,23 @@ function Leaderboard({ owners }: { owners: OwnerSummary[] }) {
 // Page
 // ---------------------------------------------------------------------------
 
+const PACKAGE_OPTIONS = [
+  "Growth - $260 / mo",
+  "Starter - $130 / mo",
+  "Plus - $350 / mo",
+  "Essentials - $190 / mo",
+  "Freemium",
+  "Custom",
+  "Pro - $475 / mo",
+  "Elite - $675 / mo",
+  "Boostly Growth Partner Package",
+];
+
 export default function HomePage() {
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
   const [companies, setCompanies] = useState<CompanyRecord[]>([]);
   const [selectedOwner, setSelectedOwner] = useState<string | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<"companies" | "leaderboard">(
     "companies"
   );
@@ -374,18 +387,58 @@ export default function HomePage() {
               ))}
             </div>
 
+            {/* Package filter */}
+            <div className="flex items-center gap-2 mb-5">
+              <span className="text-xs text-gray-400 font-semibold uppercase tracking-wide shrink-0">
+                Package
+              </span>
+              <select
+                value={selectedPackage ?? ""}
+                onChange={(e) =>
+                  setSelectedPackage(e.target.value || null)
+                }
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white focus:outline-none focus:border-blue-400"
+              >
+                <option value="">All packages</option>
+                {PACKAGE_OPTIONS.map((pkg) => (
+                  <option key={pkg} value={pkg}>
+                    {pkg}
+                  </option>
+                ))}
+                <option value="__none__">No package</option>
+              </select>
+            </div>
+
             {/* Summary bar */}
-            {!loading && (
-              <p className="text-xs text-gray-400 mb-3">
-                {companies.length}{" "}
-                {companies.length === 1 ? "company" : "companies"}
-                {selectedOwner ? ` for ${selectedOwner}` : ""}
-              </p>
-            )}
+            {!loading && (() => {
+              const visible = selectedPackage === "__none__"
+                ? companies.filter((c) => !c.credits_package)
+                : selectedPackage
+                ? companies.filter((c) => c.credits_package === selectedPackage)
+                : companies;
+              return (
+                <p className="text-xs text-gray-400 mb-3">
+                  {visible.length}{" "}
+                  {visible.length === 1 ? "company" : "companies"}
+                  {selectedOwner ? ` for ${selectedOwner}` : ""}
+                  {selectedPackage && selectedPackage !== "__none__" ? ` · ${selectedPackage}` : ""}
+                  {selectedPackage === "__none__" ? " · No package" : ""}
+                </p>
+              );
+            })()}
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <CompanyTable companies={companies} loading={loading} />
+              <CompanyTable
+                companies={
+                  selectedPackage === "__none__"
+                    ? companies.filter((c) => !c.credits_package)
+                    : selectedPackage
+                    ? companies.filter((c) => c.credits_package === selectedPackage)
+                    : companies
+                }
+                loading={loading}
+              />
             </div>
           </>
         )}
