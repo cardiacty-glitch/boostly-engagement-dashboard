@@ -158,11 +158,6 @@ function CompanyTable({
                 onClick={handleSort}
               />
             </th>
-            <th className="text-left px-4 py-3 hidden md:table-cell">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Industry
-              </span>
-            </th>
             <th className="text-left px-4 py-3">
               <SortButton
                 label="Last Contacted"
@@ -211,9 +206,6 @@ function CompanyTable({
               <td className="px-4 py-3 text-gray-700 font-medium hidden lg:table-cell">
                 {c.child_locations > 0 ? c.child_locations : "—"}
               </td>
-              <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
-                {c.industry ?? "—"}
-              </td>
               <td className="px-4 py-3 text-gray-500">
                 {formatDaysAgo(c.days_since_last_contacted)}
               </td>
@@ -221,39 +213,6 @@ function CompanyTable({
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function Leaderboard({ owners }: { owners: OwnerSummary[] }) {
-  if (owners.length === 0) {
-    return (
-      <p className="text-center text-gray-400 text-sm py-12">
-        No owner data.
-      </p>
-    );
-  }
-  return (
-    <div className="divide-y divide-gray-100">
-      {owners.map((o, i) => (
-        <div key={o.owner_name} className="flex items-center gap-4 px-6 py-4">
-          <span className="text-2xl font-bold text-gray-200 w-8 text-right shrink-0">
-            {i + 1}
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-800 truncate">{o.owner_name}</p>
-            <p className="text-xs text-gray-400">
-              {o.company_count} companies
-            </p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-sm font-bold text-green-700 px-3 py-1 rounded-full bg-green-100">
-              {o.active_count}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">active</p>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -279,9 +238,6 @@ export default function HomePage() {
   const [companies, setCompanies] = useState<CompanyRecord[]>([]);
   const [selectedOwner, setSelectedOwner] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"companies" | "leaderboard">(
-    "companies"
-  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -326,28 +282,6 @@ export default function HomePage() {
               858 parent companies · Dallas Williams, Chris Hubbard, Kassidy Farrer, Tyler Price
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setMainTab("companies")}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                mainTab === "companies"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Companies
-            </button>
-            <button
-              onClick={() => setMainTab("leaderboard")}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                mainTab === "leaderboard"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Leaderboard
-            </button>
-          </div>
         </div>
       </header>
 
@@ -358,8 +292,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {mainTab === "companies" && (
-          <>
+        <>
             {/* Owner filter tabs */}
             <div className="flex flex-wrap gap-2 mb-5">
               <button
@@ -440,18 +373,7 @@ export default function HomePage() {
                 loading={loading}
               />
             </div>
-          </>
-        )}
-
-        {mainTab === "leaderboard" && (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Owner Leaderboard</h2>
-              <p className="text-xs text-gray-400">Ranked by active company count</p>
-            </div>
-            <Leaderboard owners={owners} />
-          </div>
-        )}
+        </>
       </main>
     </div>
   );
