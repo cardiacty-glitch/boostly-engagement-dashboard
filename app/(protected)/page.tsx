@@ -16,6 +16,12 @@ function statusColor(status: string | null): string {
   return "bg-gray-100 text-gray-500"; // Inactive, etc.
 }
 
+function formatRenewalDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const [year, month, day] = dateStr.split("-");
+  return `${parseInt(month)}/${parseInt(day)}/${year}`;
+}
+
 function formatDaysAgo(days: number | null): string {
   if (days === null) return "Never";
   if (days < 1) return "Today";
@@ -219,7 +225,7 @@ function CompanyTable({
                 {c.child_locations > 0 ? c.child_locations : "—"}
               </td>
               <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
-                {c.next_renewal_date ?? "—"}
+                {formatRenewalDate(c.next_renewal_date)}
               </td>
               <td className="px-4 py-3 text-gray-500">
                 {formatDaysAgo(c.days_since_last_contacted)}
@@ -253,6 +259,9 @@ export default function HomePage() {
   const [companies, setCompanies] = useState<CompanyRecord[]>([]);
   const [selectedOwner, setSelectedOwner] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(
+    new Set(["Active", "Paused", "Pending Cancellation"])
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -335,6 +344,43 @@ export default function HomePage() {
               ))}
             </div>
 
+            {/* Status filter */}
+            <div className="flex items-center gap-2 mb-5 flex-wrap">
+              <span className="text-xs text-gray-400 font-semibold uppercase tracking-wide shrink-0">
+                Status
+              </span>
+              {["Active", "Paused", "Pending Cancellation", "Inactive", "None"].map((s) => {
+                const checked = selectedStatuses.has(s);
+                return (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      setSelectedStatuses((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(s)) next.delete(s);
+                        else next.add(s);
+                        return next;
+                      });
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
+                      checked
+                        ? "bg-gray-900 text-white border-gray-900"
+                        : "bg-white border-gray-200 text-gray-400 hover:border-gray-400"
+                    }`}
+                  >
+                    <span className={`w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 ${checked ? "bg-white border-white" : "border-gray-400"}`}>
+                      {checked && (
+                        <svg className="w-2.5 h-2.5 text-gray-900" viewBox="0 0 10 10" fill="none">
+                          <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Package filter */}
             <div className="flex items-center gap-2 mb-5">
               <span className="text-xs text-gray-400 font-semibold uppercase tracking-wide shrink-0">
@@ -359,11 +405,15 @@ export default function HomePage() {
 
             {/* Summary bar */}
             {!loading && (() => {
+              const byStatus = companies.filter((c) => {
+                const s = c.account_status ?? "None";
+                return selectedStatuses.has(s);
+              });
               const visible = selectedPackage === "__none__"
-                ? companies.filter((c) => !c.credits_package)
+                ? byStatus.filter((c) => !c.credits_package)
                 : selectedPackage
-                ? companies.filter((c) => c.credits_package === selectedPackage)
-                : companies;
+                ? byStatus.filter((c) => c.credits_package === selectedPackage)
+                : byStatus;
               return (
                 <p className="text-xs text-gray-400 mb-3">
                   {visible.length}{" "}
@@ -378,13 +428,17 @@ export default function HomePage() {
             {/* Table */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <CompanyTable
-                companies={
-                  selectedPackage === "__none__"
-                    ? companies.filter((c) => !c.credits_package)
+                companies={(() => {
+                  const byStatus = companies.filter((c) => {
+                    const s = c.account_status ?? "None";
+                    return selectedStatuses.has(s);
+                  });
+                  return selectedPackage === "__none__"
+                    ? byStatus.filter((c) => !c.credits_package)
                     : selectedPackage
-                    ? companies.filter((c) => c.credits_package === selectedPackage)
-                    : companies
-                }
+                    ? byStatus.filter((c) => c.credits_package === selectedPackage)
+                    : byStatus;
+                })()}
                 loading={loading}
               />
             </div>

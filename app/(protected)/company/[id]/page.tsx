@@ -25,6 +25,12 @@ function formatDaysAgo(days: number | null): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
+function formatRenewalDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const [year, month, day] = dateStr.split("-");
+  return `${parseInt(month)}/${parseInt(day)}/${year}`;
+}
+
 function formatRevenue(amount: number | null): string {
   if (amount === null) return "—";
   if (amount >= 1_000_000)
@@ -177,7 +183,7 @@ export default function CompanyDetailPage({
           <h2 className="font-semibold text-gray-900 mb-4">Details</h2>
           <InfoRow label="Credits Package" value={company.credits_package} />
           <InfoRow label="Lifecycle" value={company.lifecycle} />
-          <InfoRow label="Next Renewal Date" value={company.next_renewal_date} />
+          <InfoRow label="Next Renewal Date" value={formatRenewalDate(company.next_renewal_date)} />
           <InfoRow label="Last Account Review" value={company.last_account_review} />
           <InfoRow label="Next Review" value={company.next_review_scheduled} />
           <InfoRow label="Address" value={address || null} />
