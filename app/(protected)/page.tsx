@@ -29,7 +29,8 @@ type SortKey =
   | "company_name"
   | "days_since_last_contacted"
   | "child_locations"
-  | "account_status";
+  | "account_status"
+  | "next_renewal_date";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -95,6 +96,8 @@ function CompanyTable({
       diff = a.child_locations - b.child_locations;
     else if (sortKey === "account_status")
       diff = (a.account_status ?? "").localeCompare(b.account_status ?? "");
+    else if (sortKey === "next_renewal_date")
+      diff = (a.next_renewal_date ?? "9999").localeCompare(b.next_renewal_date ?? "9999");
     return sortDir === "desc" ? -diff : diff;
   });
 
@@ -158,6 +161,15 @@ function CompanyTable({
                 onClick={handleSort}
               />
             </th>
+            <th className="text-left px-4 py-3 hidden md:table-cell">
+              <SortButton
+                label="Next Renewal"
+                field="next_renewal_date"
+                current={sortKey}
+                dir={sortDir}
+                onClick={handleSort}
+              />
+            </th>
             <th className="text-left px-4 py-3">
               <SortButton
                 label="Last Contacted"
@@ -205,6 +217,9 @@ function CompanyTable({
               </td>
               <td className="px-4 py-3 text-gray-700 font-medium hidden lg:table-cell">
                 {c.child_locations > 0 ? c.child_locations : "—"}
+              </td>
+              <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
+                {c.next_renewal_date ?? "—"}
               </td>
               <td className="px-4 py-3 text-gray-500">
                 {formatDaysAgo(c.days_since_last_contacted)}

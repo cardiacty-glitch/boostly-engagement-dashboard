@@ -177,6 +177,7 @@ export default function CompanyDetailPage({
           <h2 className="font-semibold text-gray-900 mb-4">Details</h2>
           <InfoRow label="Credits Package" value={company.credits_package} />
           <InfoRow label="Lifecycle" value={company.lifecycle} />
+          <InfoRow label="Next Renewal Date" value={company.next_renewal_date} />
           <InfoRow label="Last Account Review" value={company.last_account_review} />
           <InfoRow label="Next Review" value={company.next_review_scheduled} />
           <InfoRow label="Address" value={address || null} />
